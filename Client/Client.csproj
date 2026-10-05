@@ -1,0 +1,89 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net10.0;net10.0-windows10.0.19041.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CSOToolbox.Client</RootNamespace>
+    <Version>0.1.0</Version>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationIcon>Resources/icon.ico</ApplicationIcon>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <NoWarn>$(NoWarn);IL2026;IL2104</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Default to host platform if RID is not explicitly set -->
+    <TargetOS Condition="'$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">Windows</TargetOS>
+    <TargetOS Condition="'$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">Linux</TargetOS>
+    <!-- Detect from RID if set -->
+    <TargetOS Condition="'$(TargetOS)' == '' and '$(RuntimeIdentifier)' != '' and $(RuntimeIdentifier.StartsWith('win'))">Windows</TargetOS>
+    <TargetOS Condition="'$(TargetOS)' == '' and '$(RuntimeIdentifier)' != '' and $(RuntimeIdentifier.StartsWith('linux'))">Linux</TargetOS>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetOS)' == 'Windows'">
+    <DefineConstants>$(DefineConstants);WINDOWS_PLATFORM</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetOS)' == 'Linux'">
+    <DefineConstants>$(DefineConstants);LINUX_PLATFORM</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ReleaseChannel)' == 'PROD'">
+    <DefineConstants>$(DefineConstants);RELEASE_CHANNEL_PROD</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.26" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <TrimmerRootAssembly Include="Client" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(TargetFramework.Contains('windows'))">
+    <TrimmerRootAssembly Include="Microsoft.Toolkit.Uwp.Notifications" />
+    <TrimmerRootAssembly Include="WinRT.Runtime" />
+    <TrimmerRootAssembly Include="Microsoft.Windows.SDK.NET" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Resources/icon.png" />
+    <AvaloniaResource Include="Resources/TwemojiCountryFlags.ttf" />
+    <AvaloniaResource Include="Resources/Inconsolata-Regular.ttf" />
+    <AvaloniaResource Include="Resources/Services/*.png" />
+  </ItemGroup>
+
+  <Target Name="GenerateBuildInfo" BeforeTargets="BeforeBuild">
+    <PropertyGroup>
+      <BuildInfoFile>$(IntermediateOutputPath)BuildInfo.g.cs</BuildInfoFile>
+      <CurrentTime>$([System.DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"))</CurrentTime>
+      <BuildInfoCode>
+<![CDATA[
+namespace CSOToolbox.Client
+{
+    public static class BuildInfo
+    {
+        public const string BuildDate = "$(CurrentTime)"%3B
+    }
+}
+]]>
+      </BuildInfoCode>
+    </PropertyGroup>
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <WriteLinesToFile File="$(BuildInfoFile)" Lines="$(BuildInfoCode)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(BuildInfoFile)" />
+    </ItemGroup>
+  </Target>
+</Project>

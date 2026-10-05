@@ -1,0 +1,938 @@
+<?xml version="1.0"?>
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:CSOToolbox.Client.ViewModels" xmlns:lib="using:CSOToolbox.Client.Lib" x:Class="CSOToolbox.Client.MainWindow" Title="Toolbox" Icon="/Resources/icon.png" Width="640" Height="800" MinWidth="640" MinHeight="800" WindowStartupLocation="CenterScreen" Background="#121212" Foreground="#FFFFFF" RequestedThemeVariant="Dark">
+  <Window.Styles>
+    <!-- Base ComboBox style for all ComboBoxes in the Window -->
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="#2b2b2b"/>
+      <Setter Property="BorderBrush" Value="#3d3d3d"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <!-- PointerOver, Focus, Pressed styles for all ComboBoxes in the Window -->
+    <Style Selector="ComboBox:pointerover /template/ Border#Background">
+      <Setter Property="BorderBrush" Value="#4a4a4a"/>
+      <Setter Property="Background" Value="#2b2b2b"/>
+    </Style>
+    <Style Selector="ComboBox:focus /template/ Border#Background">
+      <Setter Property="BorderBrush" Value="#4a4a4a"/>
+      <Setter Property="Background" Value="#2b2b2b"/>
+    </Style>
+    <Style Selector="ComboBox:pressed /template/ Border#Background">
+      <Setter Property="BorderBrush" Value="#4a4a4a"/>
+      <Setter Property="Background" Value="#2b2b2b"/>
+    </Style>
+    <Style Selector="ComboBox.PrefCombo">
+      <Setter Property="ItemTemplate">
+        <DataTemplate DataType="lib:AnalyzerOption">
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <Image Source="{Binding Icon}" Width="16" Height="16" />
+            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="White" />
+          </StackPanel>
+        </DataTemplate>
+      </Setter>
+    </Style>
+    <!-- TxtSearchBar styles for focus states -->
+    <Style Selector="TextBox#TxtSearchBar">
+      <Setter Property="Foreground" Value="#888888"/>
+    </Style>
+    <Style Selector="TextBox#TxtSearchBar:focus">
+      <Setter Property="Foreground" Value="#ffffff"/>
+    </Style>
+    <!-- Smooth entry animation for report panels to reduce switching flicker -->
+    <Style Selector="ScrollViewer.report-panel[IsVisible=True], StackPanel.report-panel[IsVisible=True]">
+      <Style.Animations>
+        <Animation Duration="0:0:0.15" FillMode="Forward">
+          <KeyFrame KeyTime="0:0:0">
+            <Setter Property="Opacity" Value="0.0"/>
+          </KeyFrame>
+          <KeyFrame KeyTime="0:0:0.15">
+            <Setter Property="Opacity" Value="1.0"/>
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+  </Window.Styles>
+  <Grid>
+    <Grid RowDefinitions="Auto,*">
+      <!-- Top Navigation Bar -->
+      <Border Grid.Row="0" BorderBrush="#2c2c2c" BorderThickness="0,0,0,2" Background="#1e1e1e" Padding="8">
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+          <Button Name="BtnNavLeft" Content="&#x2B9C;" Width="40" Height="40" FontSize="16" Margin="4,2" Click="OnNavLeftClick" CornerRadius="6" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#2b2b2b" BorderBrush="#3d3d3d"/>
+          <Button Name="BtnNavRight" Content="&#x2B9E;" Width="40" Height="40" FontSize="16" Margin="4,2" Grid.Column="1" Click="OnNavRightClick" CornerRadius="6" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#2b2b2b" BorderBrush="#3d3d3d"/>
+          <TextBox Name="TxtSearchBar" PlaceholderText="Search anything..." Height="40" FontSize="16" Margin="8,2" Grid.Column="2" VerticalContentAlignment="Center" KeyDown="OnSearchBarKeyDown" PastingFromClipboard="OnSearchBarPastingFromClipboard" BorderBrush="#3d3d3d" Background="#151515"/>
+          <Button Name="BtnSearch" Content="Lookup" Width="90" Height="40" Margin="4,2" Grid.Column="3" Click="OnSearchClick" CornerRadius="6" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="{DynamicResource SystemAccentColor}" Foreground="White" FontWeight="Bold"/>
+        </Grid>
+      </Border>
+      <!-- Main TabView -->
+      <Grid Grid.Row="1" RowDefinitions="Auto,*">
+        <TabStrip Name="MainTabControl" Grid.Row="0" Margin="12,4,12,12">
+          <TabStrip.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+            </ItemsPanelTemplate>
+          </TabStrip.ItemsPanel>
+          <TabStrip.Styles>
+            <Style Selector="TabStripItem">
+              <Setter Property="MinHeight" Value="40"/>
+              <Setter Property="Padding" Value="24,0"/>
+              <Setter Property="FontSize" Value="15"/>
+              <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+          </TabStrip.Styles>
+          <TabStripItem Name="TabHeaderReport" Content="Report"/>
+          <TabStripItem Name="TabHeaderData" Content="Data"/>
+          <TabStripItem Name="TabHeaderHistory" Content="History"/>
+          <TabStripItem Name="TabHeaderLog" Content="Log"/>
+          <TabStripItem Name="TabHeaderPreferences" Content="Preferences"/>
+        </TabStrip>
+        <Grid Grid.Row="1" Margin="12,0,12,12">
+          <!-- 1. Report Tab -->
+          <Grid Name="TabContentReport" RowDefinitions="Auto,*" IsVisible="{Binding #TabHeaderReport.IsSelected}">
+            <!-- Report Object Header Panel -->
+            <StackPanel Grid.Row="0" Name="IndicatorHeader" IsVisible="False" Spacing="10" Margin="0,0,0,15">
+              <TextBlock Name="TxtIndicatorTarget" Text="Target: Unknown" FontSize="18" FontWeight="Bold" Foreground="#bd93f9" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" MaxWidth="560"/>
+              <StackPanel Name="PanelIndicatorButtons" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                <ComboBox Name="ComboAnalyzers" Width="180" SelectionChanged="OnAnalyzerSelectionChanged" Background="#2b2b2b" BorderBrush="#3d3d3d" CornerRadius="6" VerticalContentAlignment="Center">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="lib:AnalyzerOption">
+                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Image Source="{Binding Icon}" Width="16" Height="16" />
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="White" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Name="BtnIndicatorCopy" Click="OnIndicatorCopyClick" Padding="14,6" CornerRadius="6" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Data="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Width="12" Height="12" Foreground="#cccccc"/>
+                    <TextBlock Text="Copy Target" FontSize="13" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Name="BtnIndicatorWeb" Click="OnIndicatorWebClick" Padding="14,6" CornerRadius="6" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" Width="12" Height="12" Foreground="#cccccc"/>
+                    <TextBlock Text="Open Web" FontSize="13" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Name="BtnIndicatorRefresh" Click="OnIndicatorRefreshClick" Padding="14,6" CornerRadius="6" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Data="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.68 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.68-2.8L5.22 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" Width="12" Height="12" Foreground="#cccccc"/>
+                    <TextBlock Text="Force Refresh" FontSize="13" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+              <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,4"/>
+            </StackPanel>
+            <Grid Grid.Row="1">
+              <!-- Loading Panel -->
+              <StackPanel Name="PanelLoading" Classes="report-panel" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="15" IsVisible="False">
+                <ProgressBar Name="ProgressLoading" IsIndeterminate="True" Width="200" Height="4" Foreground="{DynamicResource SystemAccentColorBrush}"/>
+                <TextBlock Name="TxtLoadingStatus" Text="Analyzing target indicator..." HorizontalAlignment="Center" Foreground="#aaaaaa" FontSize="14"/>
+              </StackPanel>
+              <!-- Default Welcome Panel -->
+              <StackPanel Name="PanelWelcome" Classes="report-panel" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10">
+                <TextBlock Text="Ready for Analysis" FontSize="20" FontWeight="SemiBold" Foreground="#888888" HorizontalAlignment="Center"/>
+                <TextBlock Text="Enter an IP, CVE, domain, etc., and press Enter to start analysis." FontSize="14" Foreground="#666666" HorizontalAlignment="Center"/>
+              </StackPanel>
+              <!-- Error / Info Panel -->
+              <StackPanel Name="PanelError" Classes="report-panel" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="15" IsVisible="False">
+                <Border Name="ErrorBorder" Background="#2b1a1a" CornerRadius="8" Padding="24" BorderBrush="#8b2525" BorderThickness="1" MaxWidth="500">
+                  <StackPanel Spacing="12" HorizontalAlignment="Center">
+                    <PathIcon Name="ErrorIcon" Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" Width="32" Height="32" Foreground="#ff5555" HorizontalAlignment="Center"/>
+                    <TextBlock Name="ErrorTitle" Text="Analysis Failed" FontSize="18" FontWeight="SemiBold" Foreground="#ff5555" HorizontalAlignment="Center"/>
+                    <TextBlock Name="TxtErrorDetails" Text="An error occurred during the analysis." TextWrapping="Wrap" FontSize="14" Foreground="#dddddd" HorizontalAlignment="Center" TextAlignment="Center"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+              <!-- AbuseIPDB Report Panel -->
+              <ScrollViewer Name="PanelAbuseIPDB" IsVisible="False" Classes="report-panel">
+                <StackPanel Spacing="16">
+                  <!-- AbuseIPDB Removed Redundant Header -->
+                  <!-- Confidence Score Badge & Details -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center">
+                      <TextBlock Name="TxtAbuseScoreText" Text="Abuse Confidence Score" FontSize="12" Foreground="#888888" HorizontalAlignment="Center"/>
+                      <TextBlock Name="TxtAbuseScore" Text="0%" FontSize="36" FontWeight="Black" Foreground="#00ff00" HorizontalAlignment="Center"/>
+                      <ProgressBar Name="ProgressAbuseScore" Value="0" Maximum="100" Height="8" Width="300" Foreground="#00ff00" Background="#444444"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,4"/>
+                      <TextBlock Name="TxtAbuseDetails" Text="Details summary here" TextWrapping="Wrap" FontSize="14" HorizontalAlignment="Center" Foreground="#E0E0E0" FontWeight="Medium"/>
+                    </StackPanel>
+                  </Border>
+                  <!-- Middle Information Section Boxed -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Details" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <Grid ColumnDefinitions="140,*,Auto" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="ISP:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtAbuseIsp" Text="..." VerticalAlignment="Center"/>
+                        <Button Grid.Row="0" Grid.Column="2" Content="Copy" Height="24" Padding="6,1,6,3" FontSize="11" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Click="OnAbuseIspCopyClick"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Usage Type:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtAbuseUsage" Text="..." VerticalAlignment="Center"/>
+                        <Button Name="BtnAbuseUsageCopy" Grid.Row="2" Grid.Column="2" Content="Copy" Height="24" Padding="6,1,6,3" FontSize="11" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Click="OnAbuseUsageCopyClick"/>
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Domain:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtAbuseDomain" Text="..." VerticalAlignment="Center"/>
+                        <Button Grid.Row="4" Grid.Column="2" Content="Copy" Height="24" Padding="6,1,6,3" FontSize="11" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Click="OnAbuseDomainCopyClick"/>
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Country:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="6" Grid.Column="1" Name="TxtAbuseCountry" Text="..." VerticalAlignment="Center"/>
+                        <Button Name="BtnAbuseCountryCopy" Grid.Row="6" Grid.Column="2" Content="Copy" Height="24" Padding="6,1,6,3" FontSize="11" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Click="OnAbuseCountryCopyClick"/>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                  <!-- Reported Reasons -->
+                  <StackPanel Name="PanelAbuseCategories" Spacing="6"/>
+                </StackPanel>
+              </ScrollViewer>
+              <!-- Scamalytics Report Panel -->
+              <ScrollViewer Name="PanelScamalytics" IsVisible="False" Classes="report-panel">
+                <StackPanel Spacing="16">
+                  <!-- Risk Score Badge -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center">
+                      <TextBlock Name="TxtScamalyticsScoreText" Text="Scamalytics Fraud Score" FontSize="12" Foreground="#888888" HorizontalAlignment="Center"/>
+                      <TextBlock Name="TxtScamalyticsScore" Text="0" FontSize="36" FontWeight="Black" Foreground="#00ff00" HorizontalAlignment="Center"/>
+                      <ProgressBar Name="ProgressScamalyticsScore" Value="0" Maximum="100" Height="8" Width="300" Foreground="#00ff00" Background="#444444"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,4"/>
+                      <TextBlock Name="TxtScamalyticsRisk" Text="This IP is categorized as Low Risk" FontSize="14" Foreground="#E0E0E0" HorizontalAlignment="Center" FontWeight="Medium"/>
+                    </StackPanel>
+                  </Border>
+                  <!-- Security Information -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Security Information" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                        <!-- Left card: Blacklist + VPN + TOR -->
+                        <Border Grid.Column="0" Background="#1e1e1e" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                          <StackPanel Spacing="12">
+                            <TextBlock Text="Threat &amp; Proxy Detection" FontSize="13" FontWeight="Bold" Foreground="#ff79c6"/>
+                            <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                            <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto">
+                              <TextBlock Grid.Row="0" Grid.Column="0" Text="Blacklisted (External):" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtScamalyticsBlacklisted" Text="..." VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="2" Grid.Column="0" Text="Proxy:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtScamalyticsProxy" Text="..." VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="4" Grid.Column="0" Text="Anonymizing VPN:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtScamalyticsVpn" Text="..." VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="6" Grid.Column="0" Text="TOR Exit Node:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="6" Grid.Column="1" Name="TxtScamalyticsTor" Text="..." VerticalAlignment="Center"/>
+                            </Grid>
+                          </StackPanel>
+                        </Border>
+                        <!-- Right card: Hosting & Infrastructure flags -->
+                        <Border Grid.Column="1" Background="#1e1e1e" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                          <StackPanel Spacing="12">
+                            <TextBlock Text="Hosting &amp; Infrastructure" FontSize="13" FontWeight="Bold" Foreground="#8be9fd"/>
+                            <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                            <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto">
+                              <TextBlock Grid.Row="0" Grid.Column="0" Text="Data Center:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtScamalyticsDatacenter" Text="..." VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="2" Grid.Column="0" Text="Apple iCloud Relay:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtScamalyticsIcloudRelay" Text="..." VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="4" Grid.Column="0" Text="Amazon AWS:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtScamalyticsAws" Text="..." VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="6" Grid.Column="0" Text="Google IP:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                              <TextBlock Grid.Row="6" Grid.Column="1" Name="TxtScamalyticsGoogle" Text="..." VerticalAlignment="Center"/>
+                            </Grid>
+                          </StackPanel>
+                        </Border>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                  <!-- GeoIP Information -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="GeoIP Information" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <Grid ColumnDefinitions="140,*,120" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto,8,Auto,8,Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Country:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtScamalyticsCountry" Text="N/A" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="City:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtScamalyticsCity" Text="N/A" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="AS Name:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtScamalyticsOrg" Text="N/A" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Time Zone:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="6" Grid.Column="1" Name="TxtScamalyticsTimeZone" Text="N/A" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="8" Grid.Column="0" Text="Location:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="8" Grid.Column="1" Name="TxtScamalyticsLocation" Text="N/A" VerticalAlignment="Center"/>
+                        <Button Grid.Row="8" Grid.Column="2" Height="24" Padding="6,1,6,3" FontSize="11" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" HorizontalAlignment="Right" Click="OnScamalyticsOpenMapsClick">
+                          <StackPanel Orientation="Horizontal" Spacing="0">
+                            <TextBlock Text="G" Foreground="#669DF6" FontSize="11"/>
+                            <TextBlock Text="o" Foreground="#F28B82" FontSize="11"/>
+                            <TextBlock Text="o" Foreground="#FDD663" FontSize="11"/>
+                            <TextBlock Text="g" Foreground="#669DF6" FontSize="11"/>
+                            <TextBlock Text="l" Foreground="#81C995" FontSize="11"/>
+                            <TextBlock Text="e" Foreground="#F28B82" FontSize="11"/>
+                          </StackPanel>
+                        </Button>
+                        <TextBlock Grid.Row="10" Grid.Column="0" Text="ISP:" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="10" Grid.Column="1" Name="TxtScamalyticsIsp" Text="N/A" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+              <!-- VirusTotal Report Panel -->
+              <ScrollViewer Name="PanelVirusTotal" IsVisible="False" Classes="report-panel">
+                <StackPanel Spacing="16">
+                  <!-- VirusTotal Removed Redundant Header -->
+                  <!-- Detection Rate Card & Summary -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center">
+                      <TextBlock Text="Security Vendor Detections" FontSize="12" Foreground="#888888" HorizontalAlignment="Center"/>
+                      <TextBlock Name="TxtVtDetections" Text="0 / 70" FontSize="36" FontWeight="Black" Foreground="#00ff00" HorizontalAlignment="Center"/>
+                      <ProgressBar Name="ProgressVtDetections" Value="0" Maximum="100" Height="8" Width="300" Foreground="#00ff00" Background="#444444"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,4"/>
+                      <TextBlock Name="TxtVtSummary" Text="Summary..." TextWrapping="Wrap" FontSize="14" HorizontalAlignment="Center" Foreground="#E0E0E0" FontWeight="Medium"/>
+                    </StackPanel>
+                  </Border>
+                  <!-- Highlight Card (Reputation & Categories) -->
+                  <Border Name="CardVtHighlight" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" IsVisible="False">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Reputation &amp; Categories" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <StackPanel Name="PanelVtHighlight" Spacing="8">
+                        <!-- Populated dynamically in code-behind -->
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <!-- Details Boxed section -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Details" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <StackPanel Name="PanelVtDetails" Spacing="8">
+                        <!-- Populated dynamically in code-behind -->
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+              <!-- CVE Report Panel (CIRCL & Shodan) -->
+              <ScrollViewer Name="PanelCVE" IsVisible="False" Classes="report-panel">
+                <StackPanel Spacing="16">
+                  <!-- CVE Details Card -->
+                  <Border Name="CardCveDetails" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="CVE Details" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                      <Grid ColumnDefinitions="140,*,Auto" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="CVE ID:" Foreground="#888888" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtCveId" Text="..." FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Grid.Row="0" Grid.Column="2" Content="Copy" Height="24" Padding="6,1,6,3" FontSize="11" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Click="OnCveIdCopyClick"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Assigner:" Foreground="#888888" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtCveAssigner" Text="..." VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Published:" Foreground="#888888" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtCvePublished" Text="..." VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Modified:" Foreground="#888888" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="6" Grid.Column="1" Name="TxtCveModified" Text="..." VerticalAlignment="Center"/>
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+                  <!-- CVSS Score Card -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center">
+                      <TextBlock Text="CVSS Severity Score" FontSize="12" Foreground="#888888" HorizontalAlignment="Center"/>
+                      <TextBlock Name="TxtCveScore" Text="0.0" FontSize="36" FontWeight="Black" Foreground="#888888" HorizontalAlignment="Center"/>
+                      <ProgressBar Name="ProgressCveScore" Value="0" Maximum="100" Height="8" Width="300" Foreground="#888888" Background="#444444"/>
+                    </StackPanel>
+                  </Border>
+                  <!-- EPSS & KEV Card (Shodan) -->
+                  <Border Name="CardCveEpssKev" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" IsVisible="False">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Exploit Prediction &amp; Status" FontSize="15" FontWeight="Bold" Foreground="#ffb86c"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                      <StackPanel Name="PanelCveEpssKev" Spacing="8">
+                        <!-- Populated dynamically -->
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <!-- Access Vector Card (CIRCL) -->
+                  <Border Name="CardCveAccess" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" IsVisible="False">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Access Vector (CVSS)" FontSize="15" FontWeight="Bold" Foreground="#8be9fd"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                      <StackPanel Name="PanelCveAccess" Spacing="6">
+                        <!-- Populated dynamically -->
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <!-- Impact Ratings Card (CIRCL) -->
+                  <Border Name="CardCveImpact" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" IsVisible="False">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Impact Ratings (CVSS)" FontSize="15" FontWeight="Bold" Foreground="#ff5555"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                      <StackPanel Name="PanelCveImpact" Spacing="6">
+                        <!-- Populated dynamically -->
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <!-- Summary Description Section -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Summary Description" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <TextBlock Name="TxtCveSummary" TextWrapping="Wrap" HorizontalAlignment="Stretch" FontSize="14" Foreground="#E0E0E0" LineHeight="20"/>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+              <!-- WHOIS Report Panel -->
+              <ScrollViewer Name="PanelWhois" IsVisible="False" Classes="report-panel">
+                <StackPanel Spacing="16">
+                  <!-- Domain Info Card -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center">
+                      <TextBlock Text="WHOIS Registration Info" FontSize="12" Foreground="#888888" HorizontalAlignment="Center"/>
+                      <TextBlock Name="TxtWhoisDomain" Text="domain.com" FontSize="28" FontWeight="Black" Foreground="#bd93f9" HorizontalAlignment="Center"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,4"/>
+                      <TextBlock Name="TxtWhoisRegistrar" Text="Registrar: Unknown" TextWrapping="Wrap" FontSize="14" HorizontalAlignment="Center" Foreground="#E0E0E0" FontWeight="Medium"/>
+                      <TextBlock Name="TxtWhoisDnssec" Text="" TextWrapping="Wrap" FontSize="13" HorizontalAlignment="Center" Foreground="#aaaaaa"/>
+                    </StackPanel>
+                  </Border>
+                  <!-- Dates Section Boxed -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Events" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <StackPanel Spacing="8">
+                        <TextBlock Name="TxtWhoisCreated" Text="Registered: ..." FontSize="14" Foreground="#CCCCCC"/>
+                        <TextBlock Name="TxtWhoisExpires" Text="Expires: ..." FontSize="14" Foreground="#CCCCCC"/>
+                        <TextBlock Name="TxtWhoisUpdated" Text="Last Updated: ..." FontSize="14" Foreground="#CCCCCC"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <!-- Additional Information Boxed -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" Name="CardWhoisExtra">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Additional Information" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <StackPanel Name="PanelWhoisExtraInfo" Spacing="6"/>
+                    </StackPanel>
+                  </Border>
+                  <!-- Organizations Section Boxed -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Contacts" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <StackPanel Name="PanelWhoisContacts" Spacing="12"/>
+                    </StackPanel>
+                  </Border>
+                  <!-- Status and Nameservers -->
+                  <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="EPP Domain Statuses" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8"/>
+                    <ScrollViewer Grid.Row="1" Grid.Column="0" Height="150" Margin="0,0,8,0">
+                      <StackPanel Name="PanelWhoisStatuses" Spacing="6"/>
+                    </ScrollViewer>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Nameservers" FontWeight="SemiBold" FontSize="14" Margin="8,0,0,8"/>
+                    <ScrollViewer Grid.Row="1" Grid.Column="1" Height="150" Margin="8,0,0,0">
+                      <StackPanel Name="PanelWhoisNameservers" Spacing="6"/>
+                    </ScrollViewer>
+                  </Grid>
+                </StackPanel>
+              </ScrollViewer>
+              <!-- RDAP Report Panel -->
+              <ScrollViewer Name="PanelRdap" IsVisible="False" Classes="report-panel">
+                <StackPanel Spacing="16">
+                  <!-- 1. Domain Info / Header Card -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center">
+                      <TextBlock Text="RDAP Lookup Result" FontSize="12" Foreground="#888888" HorizontalAlignment="Center"/>
+                      <TextBlock Name="TxtRdapName" Text="..." FontSize="28" FontWeight="Black" Foreground="#74b9ff" HorizontalAlignment="Center"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,4"/>
+                      <TextBlock Name="TxtRdapRegistrar" Text="Registrar: Unknown" TextWrapping="Wrap" FontSize="14" HorizontalAlignment="Center" Foreground="#E0E0E0" FontWeight="Medium"/>
+                      <TextBlock Name="TxtRdapAbuseContact" Text="Abuse Contact: Unknown" TextWrapping="Wrap" FontSize="13" HorizontalAlignment="Center" Foreground="#aaaaaa"/>
+                      <TextBlock Name="TxtRdapSecureDns" Text="" TextWrapping="Wrap" FontSize="13" HorizontalAlignment="Center" Foreground="#aaaaaa" IsVisible="False"/>
+                    </StackPanel>
+                  </Border>
+                  <!-- 2. Events Card -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Events" FontSize="15" FontWeight="Bold" Foreground="#74b9ff"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <StackPanel Name="PanelRdapEvents" Spacing="8"/>
+                    </StackPanel>
+                  </Border>
+                  <!-- 3. Contacts Card (domain mode) -->
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" Name="CardRdapContacts" IsVisible="False">
+                    <StackPanel Spacing="14">
+                      <TextBlock Text="Contacts" FontSize="15" FontWeight="Bold" Foreground="#74b9ff"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <StackPanel Name="PanelRdapContacts" Spacing="12"/>
+                    </StackPanel>
+                  </Border>
+                  <!-- 4a. Statuses + Nameservers Grid (domain mode) -->
+                  <Grid Name="GridRdapDomainDetails" IsVisible="False" ColumnDefinitions="*,*" RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Statuses" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8"/>
+                    <ScrollViewer Grid.Row="1" Grid.Column="0" Height="150" Margin="0,0,8,0">
+                      <StackPanel Name="PanelRdapStatuses" Spacing="6"/>
+                    </ScrollViewer>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Nameservers" FontWeight="SemiBold" FontSize="14" Margin="8,0,0,8"/>
+                    <ScrollViewer Grid.Row="1" Grid.Column="1" Height="150" Margin="8,0,0,0">
+                      <StackPanel Name="PanelRdapNameservers" Spacing="6"/>
+                    </ScrollViewer>
+                  </Grid>
+                </StackPanel>
+              </ScrollViewer>
+              <!-- Bazaar (MalwareBazaar) Report Panel -->
+              <ScrollViewer Name="PanelBazaar" IsVisible="False" Classes="report-panel">
+                <StackPanel Spacing="16">
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="12">
+                      <TextBlock Text="File Information" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                      <StackPanel Name="PanelBazaarInfo" Spacing="6"/>
+                    </StackPanel>
+                  </Border>
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="12">
+                      <TextBlock Text="Classification" FontSize="15" FontWeight="Bold" Foreground="#f1fa8c"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                      <StackPanel Name="PanelBazaarClassification" Spacing="6"/>
+                    </StackPanel>
+                  </Border>
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="12">
+                      <TextBlock Text="Vendor Intelligence" FontSize="15" FontWeight="Bold" Foreground="#8be9fd"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                      <StackPanel Name="PanelBazaarVendors" Spacing="6"/>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+              <ScrollViewer Name="PanelThreatFox" IsVisible="False" Classes="report-panel">
+                <StackPanel Spacing="16">
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="12">
+                      <StackPanel Name="PanelThreatfoxConfidenceScore" Spacing="6" HorizontalAlignment="Center"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,4,0,0"/>
+                      <StackPanel Name="PanelThreatfoxConfidenceDetail" Spacing="6"/>
+                    </StackPanel>
+                  </Border>
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="Details" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                      <StackPanel Name="PanelThreatfoxDetails" Spacing="6"/>
+                    </StackPanel>
+                  </Border>
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="Threat Metadata" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                      <StackPanel Name="PanelThreatfoxExtra" Spacing="6"/>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+              <ScrollViewer Name="PanelText" IsVisible="False" Classes="report-panel" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <Grid RowDefinitions="*">
+                  <!-- 1. DNS / rDNS / PComputer Structured Layout -->
+                  <StackPanel Grid.Row="0" Name="LayoutDnsReport" Spacing="14" IsVisible="False">
+                    <!-- DNS Details Card -->
+                    <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                      <StackPanel Spacing="14">
+                        <TextBlock Name="TxtDnsReportTitle" Text="DNS Query Details" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                        <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                        <Grid ColumnDefinitions="140,*,Auto" RowDefinitions="Auto,8,Auto">
+                          <TextBlock Grid.Row="0" Grid.Column="0" Text="Target Domain/Host:" Foreground="#888888" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtDnsHost" Text="..." VerticalAlignment="Center"/>
+                          <Button Grid.Row="0" Grid.Column="2" Content="Copy" Height="24" Padding="6,1,6,3" FontSize="11" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Click="OnDnsHostCopyClick"/>
+                          <TextBlock Grid.Row="2" Grid.Column="0" Text="DNS Server:" Foreground="#888888" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtDnsType" Text="..." VerticalAlignment="Center"/>
+                        </Grid>
+                      </StackPanel>
+                    </Border>
+                    <!-- Primary Records Card (PTR / A / AAAA) -->
+                    <Border Name="CardDnsPrimary" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" IsVisible="False">
+                      <StackPanel Spacing="12">
+                        <TextBlock Name="TxtDnsIpsTitle" Text="Resolved IP Addresses (A / AAAA)" FontSize="15" FontWeight="Bold" Foreground="#8be9fd"/>
+                        <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                        <StackPanel Name="PanelDnsIpsList" Spacing="6">
+                          <!-- Populated dynamically -->
+                        </StackPanel>
+                      </StackPanel>
+                    </Border>
+                    <!-- CNAME Records Card -->
+                    <Border Name="CardDnsCname" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" IsVisible="False">
+                      <StackPanel Spacing="12">
+                        <TextBlock Text="CNAME Records" FontSize="15" FontWeight="Bold" Foreground="#f1fa8c"/>
+                        <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                        <StackPanel Name="PanelDnsCnameList" Spacing="6">
+                          <!-- Populated dynamically -->
+                        </StackPanel>
+                      </StackPanel>
+                    </Border>
+                    <!-- Mail Security & Exchange Card (MX, SPF, DMARC) -->
+                    <Border Name="CardDnsMail" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" IsVisible="False">
+                      <StackPanel Spacing="12">
+                        <TextBlock Text="Mail Configuration (MX / SPF / DMARC)" FontSize="15" FontWeight="Bold" Foreground="#50fa7b"/>
+                        <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                        <StackPanel Name="PanelDnsMailList" Spacing="8">
+                          <!-- Populated dynamically -->
+                        </StackPanel>
+                      </StackPanel>
+                    </Border>
+                    <!-- Nameservers Card (NS) -->
+                    <Border Name="CardDnsNs" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" IsVisible="False">
+                      <StackPanel Spacing="12">
+                        <TextBlock Text="Nameservers (NS)" FontSize="15" FontWeight="Bold" Foreground="#ffb86c"/>
+                        <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                        <StackPanel Name="PanelDnsNsList" Spacing="6">
+                          <!-- Populated dynamically -->
+                        </StackPanel>
+                      </StackPanel>
+                    </Border>
+                    <!-- Start of Authority Card (SOA) -->
+                    <Border Name="CardDnsSoa" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" IsVisible="False">
+                      <StackPanel Spacing="12">
+                        <TextBlock Text="Start of Authority (SOA)" FontSize="15" FontWeight="Bold" Foreground="#ff79c6"/>
+                        <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                        <StackPanel Name="PanelDnsSoaList" Spacing="6"/>
+                      </StackPanel>
+                    </Border>
+                    <!-- Local IP DB Card -->
+                    <Border Name="CardIpdb" Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1" IsVisible="False">
+                      <StackPanel Spacing="12">
+                        <TextBlock Text="Local IP Subnet Match" FontSize="15" FontWeight="Bold" Foreground="#ff79c6"/>
+                        <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                        <Grid ColumnDefinitions="140,*,Auto" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto">
+                          <TextBlock Grid.Row="0" Grid.Column="0" Text="Subnet / CIDR:" Foreground="#888888" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtIpdbCidr" Text="..." FontWeight="SemiBold" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="2" Grid.Column="0" Text="Usage / Purpose:" Foreground="#888888" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtIpdbUsage" Text="..." VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="4" Grid.Column="0" Text="Location:" Foreground="#888888" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtIpdbLocation" Text="..." VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="6" Grid.Column="0" Text="Comment:" Foreground="#888888" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="6" Grid.Column="1" Name="TxtIpdbComment" Text="..." TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        </Grid>
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                  <!-- 2. MAC Address Structured Layout -->
+                  <StackPanel Grid.Row="0" Name="LayoutMacReport" Spacing="14" IsVisible="False">
+                    <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                      <StackPanel Spacing="12">
+                        <TextBlock Text="MAC OUI Lookup" FontSize="15" FontWeight="Bold" Foreground="#50fa7b"/>
+                        <Border BorderBrush="#333333" BorderThickness="0,1,0,0"/>
+                        <Grid ColumnDefinitions="140,*,Auto" RowDefinitions="Auto,8,Auto">
+                          <TextBlock Grid.Row="0" Grid.Column="0" Text="MAC Address:" Foreground="#888888" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtMacAddress" Text="..." FontWeight="SemiBold" VerticalAlignment="Center"/>
+                          <Button Grid.Row="0" Grid.Column="2" Content="Copy" Height="24" Padding="6,1,6,3" FontSize="11" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Click="OnMacAddressCopyClick"/>
+                          <TextBlock Grid.Row="2" Grid.Column="0" Text="Vendor Name:" Foreground="#888888" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtMacVendor" Text="..." FontWeight="Bold" Foreground="#50fa7b" VerticalAlignment="Center"/>
+                          <Button Grid.Row="2" Grid.Column="2" Content="Copy" Height="24" Padding="6,1,6,3" FontSize="11" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Click="OnMacVendorCopyClick"/>
+                        </Grid>
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                  <!-- 3. Raw Text Report (Base64, NetUser, etc.) -->
+                  <Grid Grid.Row="0" Name="LayoutTextReport" RowDefinitions="Auto,*" IsVisible="False" VerticalAlignment="Stretch">
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="0,0,0,5" HorizontalAlignment="Center">
+                      <Button Name="BtnRawAnalyze" Background="#2b2b2b" BorderBrush="#3d3d3d" Foreground="#cccccc" Height="30" Padding="14,6" CornerRadius="6" VerticalContentAlignment="Center" Click="OnRawAnalyzeClick">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <PathIcon Data="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" Width="14" Height="14" Foreground="#cccccc"/>
+                          <TextBlock Text="Analyze" FontSize="13" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Button>
+                      <Button Name="BtnRawCopy" Background="#2b2b2b" BorderBrush="#3d3d3d" Foreground="#cccccc" Height="30" Padding="14,6" CornerRadius="6" VerticalContentAlignment="Center" Click="OnRawCopyClick">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <PathIcon Data="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" Width="14" Height="14" Foreground="#cccccc"/>
+                          <TextBlock Text="Copy" FontSize="13" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Button>
+                    </StackPanel>
+                    <TextBox Grid.Row="1" Name="TxtTextContent" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontSize="14" Padding="10" Background="#151515" BorderBrush="#333333" VerticalAlignment="Stretch"/>
+                  </Grid>
+                </Grid>
+              </ScrollViewer>
+              <!-- Indicator Selection View (Disambiguation) -->
+              <ScrollViewer Name="PanelSelection" IsVisible="False" Classes="report-panel">
+                <StackPanel Spacing="16">
+                  <Border Background="#252525" CornerRadius="8" Padding="16" BorderBrush="#333333" BorderThickness="1">
+                    <StackPanel Spacing="14">
+                      <TextBlock Name="TxtSelectionTitle" Text="Multiple Indicators Detected" FontSize="15" FontWeight="Bold" Foreground="#bd93f9"/>
+                      <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                      <TextBlock Name="TxtSelectionLabel" Text="Which one should I analyze?" FontSize="13" Foreground="#888888" Margin="0,0,0,6"/>
+                      <StackPanel Name="ContainerSelectionOptions" Spacing="10"/>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+            </Grid>
+          </Grid>
+          <!-- 2. Data Tab -->
+          <Grid Name="TabContentData" IsVisible="{Binding #TabHeaderData.IsSelected}">
+            <Grid RowDefinitions="Auto,*">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8" HorizontalAlignment="Center">
+                <Button Name="BtnToggleExpand" Click="OnToggleExpandClick" Height="28" MinWidth="110" Padding="10,2" Background="#2b2b2b" BorderBrush="#3d3d3d" Foreground="#cccccc" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Name="IconToggleExpand" Data="M7 13l5 5 5-5 M7 7l5 5 5-5" Width="10" Height="10" Foreground="#cccccc"/>
+                    <TextBlock Name="TxtToggleExpand" Text="Expand All" FontSize="12" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <TextBox Name="TxtDataFilter" PlaceholderText="Filter JSON tree..." Width="300" Background="#1e1e1e" Foreground="#cccccc" BorderBrush="#444444" TextChanged="OnDataFilterTextChanged"/>
+                <Button Name="BtnClearDataFilter" Click="OnClearDataFilterClick" Height="28" Padding="8,2" Background="#2b2b2b" BorderBrush="#3d3d3d" Foreground="#cccccc" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Path Data="M5 5 L17 17 M17 5 L5 17" Width="10" Height="10" Stroke="#cccccc" StrokeThickness="1.5" Stretch="Uniform"/>
+                    <TextBlock Text="Clear" FontSize="12" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+              <Border Grid.Row="1" Background="#151515" BorderBrush="#333333" BorderThickness="1" CornerRadius="4" Padding="4">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                  <StackPanel>
+                    <TreeView Name="TreeJsonData" Background="Transparent" FontSize="14" IsVisible="False">
+                      <TreeView.ContextMenu>
+                        <ContextMenu>
+                          <MenuItem Header="Copy" Click="OnJsonTreeCopyLineClick"/>
+                          <MenuItem Header="Copy Value" Click="OnJsonTreeCopyValueClick"/>
+                          <MenuItem Header="Copy Tree" Click="OnJsonTreeCopyTreeClick"/>
+                        </ContextMenu>
+                      </TreeView.ContextMenu>
+                    </TreeView>
+                    <TextBox Name="TxtRawData" IsReadOnly="True" FontSize="14" TextWrapping="Wrap" Background="Transparent" BorderThickness="0" Padding="4" IsVisible="False"/>
+                  </StackPanel>
+                </ScrollViewer>
+              </Border>
+            </Grid>
+          </Grid>
+          <!-- 3. History Tab -->
+          <Grid Name="TabContentHistory" IsVisible="{Binding #TabHeaderHistory.IsSelected}">
+            <Grid RowDefinitions="Auto,Auto,*">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,0,0,6">
+                <TextBox Name="TxtHistoryFilter" PlaceholderText="Filter history by analyzer or data..." Width="360" Background="#1e1e1e" Foreground="#cccccc" BorderBrush="#444444" TextChanged="OnHistoryFilterTextChanged"/>
+                <Button Name="BtnClearHistoryFilter" Click="OnClearHistoryFilterClick" Height="28" Padding="8,2" Background="#2b2b2b" BorderBrush="#3d3d3d" Foreground="#cccccc" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Path Data="M5 5 L17 17 M17 5 L5 17" Width="10" Height="10" Stroke="#cccccc" StrokeThickness="1.5" Stretch="Uniform"/>
+                    <TextBlock Text="Clear" FontSize="12" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+              <!-- Table Header -->
+              <Border Grid.Row="1" Background="#1e1e1e" BorderBrush="#333333" BorderThickness="1,1,1,0" CornerRadius="4,4,0,0" Padding="8,6">
+                <Grid ColumnDefinitions="180,140,*">
+                  <TextBlock Grid.Column="0" Text="Time" FontWeight="Bold" FontSize="12" Foreground="#8be9fd"/>
+                  <TextBlock Grid.Column="1" Text="Analyzer" FontWeight="Bold" FontSize="12" Foreground="#bd93f9"/>
+                  <TextBlock Grid.Column="2" Text="Data" FontWeight="Bold" FontSize="12" Foreground="#E0E0E0"/>
+                </Grid>
+              </Border>
+              <!-- Table Body -->
+              <Border Grid.Row="2" Background="#151515" BorderBrush="#333333" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4">
+                <ListBox Name="ListHistory" Background="Transparent" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="local:HistoryRowViewModel">
+                      <Grid ColumnDefinitions="180,140,*">
+                        <TextBlock Grid.Column="0" Text="{Binding TimeDisplay}" Foreground="#8be9fd" FontSize="13" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Source}" Foreground="{Binding SourceColor}" FontSize="13" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding DataDisplay}" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                  <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                      <Setter Property="Padding" Value="8,5"/>
+                      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                      <Setter Property="BorderBrush" Value="#222222"/>
+                    </Style>
+                  </ListBox.Styles>
+                </ListBox>
+              </Border>
+            </Grid>
+          </Grid>
+          <!-- 4. Log Tab -->
+          <Grid Name="TabContentLog" IsVisible="{Binding #TabHeaderLog.IsSelected}">
+            <Grid RowDefinitions="Auto,Auto,*">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,0,0,6">
+                <TextBox Name="TxtLogFilter" PlaceholderText="Filter logs by component or message..." Width="360" Background="#1e1e1e" Foreground="#cccccc" BorderBrush="#444444" TextChanged="OnLogFilterTextChanged"/>
+                <Button Name="BtnClearLogFilter" Click="OnClearLogFilterClick" Height="28" Padding="8,2" Background="#2b2b2b" BorderBrush="#3d3d3d" Foreground="#cccccc" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Path Data="M5 5 L17 17 M17 5 L5 17" Width="10" Height="10" Stroke="#cccccc" StrokeThickness="1.5" Stretch="Uniform"/>
+                    <TextBlock Text="Clear" FontSize="12" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+              <!-- Table Header -->
+              <Border Grid.Row="1" Background="#1e1e1e" BorderBrush="#333333" BorderThickness="1,1,1,0" CornerRadius="4,4,0,0" Padding="8,6">
+                <Grid ColumnDefinitions="140,120,*">
+                  <TextBlock Grid.Column="0" Text="Timestamp" FontWeight="Bold" FontSize="12" Foreground="#8be9fd"/>
+                  <TextBlock Grid.Column="1" Text="Component" FontWeight="Bold" FontSize="12" Foreground="#bd93f9"/>
+                  <TextBlock Grid.Column="2" Text="Message" FontWeight="Bold" FontSize="12" Foreground="#E0E0E0"/>
+                </Grid>
+              </Border>
+              <!-- Table Body -->
+              <Border Grid.Row="2" Background="#151515" BorderBrush="#333333" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4">
+                <ListBox Name="ListLog" Background="Transparent" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="local:LogRowViewModel">
+                      <Grid ColumnDefinitions="140,120,*">
+                        <TextBlock Grid.Column="0" Text="{Binding TimeDisplay}" Foreground="#666666" FontSize="12" VerticalAlignment="Top"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Compartment}" Foreground="{Binding CompartmentColor}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Top"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Message}" Foreground="#cccccc" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Top"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                  <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                      <Setter Property="Padding" Value="8,5"/>
+                      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                      <Setter Property="BorderBrush" Value="#222222"/>
+                    </Style>
+                  </ListBox.Styles>
+                </ListBox>
+              </Border>
+            </Grid>
+          </Grid>
+          <!-- 5. Preferences Tab -->
+          <Grid Name="TabContentPreferences" IsVisible="{Binding #TabHeaderPreferences.IsSelected}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel Spacing="20" Margin="10,15,10,10">
+                <!-- Section: General -->
+                <Border Background="#1a1a1a" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
+                  <StackPanel Spacing="14">
+                    <TextBlock Text="General" FontSize="16" FontWeight="Bold" Foreground="#bd93f9"/>
+                    <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Backend Server" FontWeight="SemiBold" FontSize="13" Foreground="#CCCCCC"/>
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Name="TxtBackendServer" PlaceholderText="http://127.0.0.1:5058" BorderBrush="#444444" Margin="0,0,10,0"/>
+                        <Button Grid.Column="1" Name="BtnSaveBackendUrl" Content="Save URL" Click="OnPrefGeneralSaveClick" Height="32" CornerRadius="6" Padding="6,2" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                      </Grid>
+                    </StackPanel>
+                    <!-- Backend Timeout -->
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Backend Timeout (seconds)" FontWeight="SemiBold" FontSize="13" Foreground="#CCCCCC"/>
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Name="TxtBackendTimeout" PlaceholderText="e.g. 5" BorderBrush="#444444" Margin="0,0,10,0"/>
+                        <Button Grid.Column="1" Name="BtnSaveTimeout" Content="Save Timeout" Click="OnPrefGeneralSaveClick" Height="32" CornerRadius="6" Padding="6,2" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                      </Grid>
+                    </StackPanel>
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="History Limit" FontWeight="SemiBold" FontSize="13" Foreground="#CCCCCC"/>
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Name="TxtHistoryLimit" PlaceholderText="e.g. 100" BorderBrush="#444444" Margin="0,0,10,0"/>
+                        <Button Grid.Column="1" Name="BtnSaveHistoryLimit" Content="Save Limit" Click="OnPrefGeneralSaveClick" Height="32" CornerRadius="6" Padding="6,2" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                      </Grid>
+                    </StackPanel>
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="Clipboard Limit (Characters)" FontWeight="SemiBold" FontSize="13" Foreground="#CCCCCC"/>
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Name="TxtClipboardLimit" PlaceholderText="e.g. 1024" BorderBrush="#444444" Margin="0,0,10,0"/>
+                        <Button Grid.Column="1" Name="BtnSaveClipboardLimit" Content="Save Limit" Click="OnPrefGeneralSaveClick" Height="32" CornerRadius="6" Padding="6,2" Background="#2b2b2b" BorderBrush="#3d3d3d" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                      </Grid>
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+                <!-- Section: Analyzers -->
+                <Border Background="#1a1a1a" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
+                  <StackPanel Spacing="14">
+                    <TextBlock Text="Default Analyzers" FontSize="16" FontWeight="Bold" Foreground="#bd93f9"/>
+                    <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                    <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,10,Auto,10,Auto,10,Auto,10,Auto,10,Auto,10,Auto,10,Auto,10,Auto,10,Auto,10,Auto,10,Auto">
+                      <TextBlock Grid.Row="0" Grid.Column="0" Text="IP Address:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="0" Grid.Column="1" Name="ComboPrefDefaultIp" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                      <TextBlock Grid.Row="2" Grid.Column="0" Text="Internal IP:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="2" Grid.Column="1" Name="ComboPrefDefaultInternalIp" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                      <TextBlock Grid.Row="4" Grid.Column="0" Text="Hash:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="4" Grid.Column="1" Name="ComboPrefDefaultHash" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                      <TextBlock Grid.Row="6" Grid.Column="0" Text="Domain:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="6" Grid.Column="1" Name="ComboPrefDefaultDomain" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                      <TextBlock Grid.Row="8" Grid.Column="0" Text="URL:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="8" Grid.Column="1" Name="ComboPrefDefaultUrl" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                      <TextBlock Grid.Row="10" Grid.Column="0" Text="MAC Address:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="10" Grid.Column="1" Name="ComboPrefDefaultMac" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                      <TextBlock Grid.Row="12" Grid.Column="0" Text="CVE:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="12" Grid.Column="1" Name="ComboPrefDefaultCve" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                      <TextBlock Grid.Row="14" Grid.Column="0" Text="Base64:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="14" Grid.Column="1" Name="ComboPrefDefaultBase64" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                      <TextBlock Grid.Row="16" Grid.Column="0" Text="Username:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="16" Grid.Column="1" Name="ComboPrefDefaultUser" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                      <TextBlock Grid.Row="18" Grid.Column="0" Text="Computer Name:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="18" Grid.Column="1" Name="ComboPrefDefaultPComputer" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                      <TextBlock Grid.Row="20" Grid.Column="0" Text="Email:" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Row="20" Grid.Column="1" Name="ComboPrefDefaultEmail" Width="200" HorizontalAlignment="Right" Classes="PrefCombo" SelectionChanged="OnPrefDefaultAnalyzerChanged"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+                <!-- Section: Behavior -->
+                <Border Background="#1a1a1a" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
+                  <StackPanel Spacing="10">
+                    <TextBlock Text="Behavior" FontSize="16" FontWeight="Bold" Foreground="#bd93f9"/>
+                    <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Analyze Clipboard On Window Focus" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ToggleSwitch Grid.Column="1" Name="SwitchAnalyzeFocus" IsCheckedChanged="OnPrefBehaviorToggleChanged"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Minimize On Escape (Esc)" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ToggleSwitch Grid.Column="1" Name="SwitchMinimizeEscape" IsCheckedChanged="OnPrefBehaviorToggleChanged"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Use UTC Timestamps" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ToggleSwitch Grid.Column="1" Name="SwitchUseUtc" IsCheckedChanged="OnPrefBehaviorToggleChanged"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Keep CSO Toolbox Running in System Tray" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ToggleSwitch Grid.Column="1" Name="SwitchKeepInTray" IsCheckedChanged="OnPrefBehaviorToggleChanged"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Passive Clipboard Analysis (Experimental)" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ToggleSwitch Grid.Column="1" Name="SwitchPassiveClipboard" IsCheckedChanged="OnPrefBehaviorToggleChanged"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Check For Updates Periodically" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ToggleSwitch Grid.Column="1" Name="SwitchAutoUpdate" IsCheckedChanged="OnPrefBehaviorToggleChanged"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+                <!-- Section: Advanced -->
+                <Border Background="#1a1a1a" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
+                  <StackPanel Spacing="10">
+                    <TextBlock Text="Advanced" FontSize="16" FontWeight="Bold" Foreground="#bd93f9"/>
+                    <Border BorderBrush="#333333" BorderThickness="0,1,0,0" Margin="0,2"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Show Data Tab (Raw JSON Payload)" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ToggleSwitch Grid.Column="1" Name="SwitchShowDataTab" IsCheckedChanged="OnPrefAdvancedToggled"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Show Log Tab (Runtime Logs)" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ToggleSwitch Grid.Column="1" Name="SwitchShowLogTab" IsCheckedChanged="OnPrefAdvancedToggled"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Disable SSL Certificate Pinning" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ToggleSwitch Grid.Column="1" Name="SwitchDisableSslPinning" IsCheckedChanged="OnPrefAdvancedToggled"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="Logging" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                      <ComboBox Grid.Column="1" Name="ComboConsoleLogLevel" Width="120" SelectedIndex="0" SelectionChanged="OnConsoleLogLevelChanged"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+                <!-- Footer Row -->
+                <Grid ColumnDefinitions="*,Auto" Margin="0,15,0,0">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Content="About" Width="90" Click="OnAboutClick" Height="36" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="6,2" CornerRadius="4" Background="#2b2b2b" BorderBrush="#3d3d3d"/>
+                    <Button Name="BtnCheckUpdates" Content="Check for Updates" Width="160" Click="OnCheckUpdatesClick" Height="36" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="6,2" CornerRadius="4" Background="#2b2b2b" BorderBrush="#3d3d3d"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Name="TxtVersionInfo" Text="Version: 0.1.0.DEV" FontSize="11" Foreground="#888888" HorizontalAlignment="Right"/>
+                    <TextBlock Name="TxtDotnetInfo" Text="Runtime: .NET 10.0" FontSize="11" Foreground="#888888" HorizontalAlignment="Right"/>
+                    <TextBlock Name="TxtBuildDateInfo" Text="Build Date: Unknown" FontSize="11" Foreground="#888888" HorizontalAlignment="Right"/>
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+        </Grid>
+      </Grid>
+    </Grid>
+    <!-- In-app Notification Card overlay -->
+    <Border Name="InAppToastNotification" Background="#1e1e1e" BorderBrush="{DynamicResource SystemAccentColorBrush}" BorderThickness="1.5" CornerRadius="8" Padding="14,10" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,32" IsVisible="False" BoxShadow="0 4 15 0 #AA000000" PointerEntered="OnNotificationPointerEntered" PointerExited="OnNotificationPointerExited">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <TextBlock Text="&#x2139;" Foreground="{DynamicResource SystemAccentColorBrush}" FontSize="18" VerticalAlignment="Center" FontWeight="Bold"/>
+        <TextBlock Name="TxtNotification" Text="Notification message" FontSize="14" VerticalAlignment="Center" Foreground="#FFFFFF" FontWeight="Medium"/>
+        <Button Name="BtnNotificationAction" Content="Switch" Height="28" Padding="12,2" VerticalContentAlignment="Center" Background="{DynamicResource SystemAccentColor}" Foreground="White" FontWeight="SemiBold" FontSize="12" CornerRadius="4" Margin="8,0,0,0" IsVisible="False" Click="OnNotificationActionClick"/>
+      </StackPanel>
+    </Border>
+  </Grid>
+</Window>

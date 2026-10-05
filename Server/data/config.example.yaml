@@ -1,0 +1,7 @@
+# Copy this file to config.yaml and add credentials for services you use.
+# Keep config.yaml private; it is ignored by Git.
+abuseipdb: []
+virustotal: []
+abusech: []
+scamalytics: []
+pulsedive: []

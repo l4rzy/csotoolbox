@@ -1,0 +1,102 @@
+name: Client build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Windows and Linux clients
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify release tag matches client version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="$(dotnet msbuild Client/Client.csproj -getProperty:Version)"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "Release tag $GITHUB_REF_NAME does not match client version $version" >&2
+            exit 1
+          fi
+
+      - name: Build Linux client
+        run: dotnet build Client/Client.csproj --configuration Release --framework net10.0 --runtime linux-x64
+
+      - name: Build Windows client
+        run: dotnet build Client/Client.csproj --configuration Release --framework net10.0-windows10.0.19041.0 --runtime win-x64
+
+      - name: Publish Linux release bundle
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          dotnet publish Client/Client.csproj \
+            --configuration Release \
+            --framework net10.0 \
+            --runtime linux-x64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfContained=true \
+            -p:PublishTrimmed=true \
+            -p:TrimMode=full \
+            -p:EnableCompressionInSingleFile=true \
+            -p:ReleaseChannel=PROD
+          mkdir -p release-assets
+          (cd Client/bin/Release/net10.0/linux-x64/publish && zip -qr "$GITHUB_WORKSPACE/release-assets/CSOToolbox-${GITHUB_REF_NAME}-linux64.zip" .)
+
+      - name: Publish Windows release bundle
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          dotnet publish Client/Client.csproj \
+            --configuration Release \
+            --framework net10.0-windows10.0.19041.0 \
+            --runtime win-x64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfContained=true \
+            -p:PublishTrimmed=true \
+            -p:TrimMode=full \
+            -p:EnableCompressionInSingleFile=true \
+            -p:ReleaseChannel=PROD
+          mkdir -p release-assets
+          (cd Client/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish && zip -qr "$GITHUB_WORKSPACE/release-assets/CSOToolbox-${GITHUB_REF_NAME}-win64.zip" . -x '*.pdb' '*.PDB')
+      - name: Upload release bundles
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v7
+        with:
+          name: client-release-bundles
+          path: release-assets/*.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v7
+
+      - name: Download release bundles
+        uses: actions/download-artifact@v7
+        with:
+          name: client-release-bundles
+          path: release-assets
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release-assets/*.zip --verify-tag --generate-notes

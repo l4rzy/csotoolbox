@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+aiohttp
+pydantic
+pyyaml
+rapidocr-openvino
+Pillow
+dnspython
+cachetools
+opencv-python-headless
+tld
+maxminddb

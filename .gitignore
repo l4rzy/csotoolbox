@@ -1,0 +1,112 @@
+##                           .gitignore for .NET Core on Linux
+## ==========================================================================================
+
+# ------------------------------------------------------------------------------------------
+# .NET Core / C# Build Artifacts
+# ------------------------------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Avoid tracking user-specific project settings
+*.user
+*.userosscache
+*.sln.docstates
+
+# ------------------------------------------------------------------------------------------
+# Linux / System Specific
+# ------------------------------------------------------------------------------------------
+.DS_Store
+.directory
+*~
+*.swp
+*.bak
+
+# ------------------------------------------------------------------------------------------
+# IDEs and Editors
+# ------------------------------------------------------------------------------------------
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/code-workspace
+
+# JetBrains Rider / Resharper
+.idea/
+*.sln.iml
+
+# Visual Studio (if you ever open the repo on Windows)
+.vs/
+
+# ------------------------------------------------------------------------------------------
+# Package Management & Tools
+# ------------------------------------------------------------------------------------------
+# Paket dependency manager
+.paket/
+paket-files/
+
+# NuGet Packages
+*.nupkg
+# The packages folder can be ignored if you are using the global cache (default)
+**/packages/
+!**/packages/repositories.config
+
+# Project local dotnet tools
+.dotnet/
+.tools/
+
+# ------------------------------------------------------------------------------------------
+# Secrets, Environment, and Publishing
+# ------------------------------------------------------------------------------------------
+# Local user secrets for .NET
+# (Though usually stored in ~/.microsoft/usersecrets/ on Linux, just in case)
+secrets.json
+.microsoft.dotnet.secret_manager.properties
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Publishing output
+*.pubxml
+*.pubxml.user
+
+# ------------------------------------------------------------------------------------------
+# Testing and Coverage
+# ------------------------------------------------------------------------------------------
+# Test results
+BenchmarkDotNet.Artifacts/
+TestResults/
+*.trx
+*.vstest
+
+# Code coverage tools
+*.clover
+coveragereport/
+*.mhtml
+state.data
+config.ini
+config.yaml
+config.json
+*.pyc
+*.pyo
+Server/docs
+Server/updates
+Server/updates/*
+Server/data/*.pem
+Server/data/*.mmdb
+Server/data/config.yaml
+Server/Server.zip
+Server/**/__pycache__/
+Server/.venv/
+Server/venv/
+Server/dist/
+Server/build/
+Client/bin/
+Client/obj/
+Client/*.deb
